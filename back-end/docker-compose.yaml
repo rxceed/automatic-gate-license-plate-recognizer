@@ -1,0 +1,22 @@
+version: "3.7"
+
+name: node-res-desiot
+
+services:
+  node-red:
+    image: nodered/node-red:latest
+    environment:
+      - TZ=Asia/Jakarta
+    ports:
+      - "1880:1880"
+    networks:
+      - node-red-net
+    volumes:
+      - node-red-desiot-data:/data
+
+volumes:
+  node-red-desiot-data:
+
+networks:
+  node-red-net:
+  
