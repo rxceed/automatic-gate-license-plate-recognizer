@@ -13,10 +13,28 @@ services:
       - node-red-net
     volumes:
       - node-red-desiot-data:/data
+  
+  emqx:
+    image: emqx:latest
+    environment:
+    - "EMQX_NODE__NAME=emqx@node.emqx.io"
+    - "EMQX_CLUSTER__DISCOVERY_STRATEGY=static"
+    networks:
+      emqx-bridge:
+        aliases:
+        - node.emqx.io
+    ports:
+      - 1883:1883
+      - 8083:8083
+      - 8084:8084
+      - 8883:8883
+      - 18083:18083
 
 volumes:
   node-red-desiot-data:
 
 networks:
   node-red-net:
+  emqx-bridge:
+    driver: bridge
   

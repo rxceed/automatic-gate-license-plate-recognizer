@@ -4,9 +4,13 @@
 #include "soc/io_mux_reg.h"
 #include "freertos/FreeRTOS.h"
 #include "nvs_flash.h"
+#include "mqtt_client.h"
+#include <stdio.h>
+#include <string.h>
 
-#define SSID "b401_wifi"
-#define PASSWORD "b401juara1"
+#define SSID "RXHSPT"
+#define PASSWORD "yayayasayasetuju"
+#define MQTT_BROKER "ws://emqx@10.113.198.207:8083/mqtt"
 #define IR_PIN 4
 #define SERVO_PIN 12
 
@@ -14,41 +18,94 @@
 #define SERVO_PWM_TIMEBASE 20000
 #define SERVO_MAX_DEG 90
 #define SERVO_MIN_DEG -90
-#define SERVO_MAX_PULSEWIDTH 2000
-#define SERVO_MIN_PULSEWIDTH 1000
+#define SERVO_MAX_PULSEWIDTH 2400
+#define SERVO_MIN_PULSEWIDTH 500
 
 static char proximityDetect;
 static char gateState;
+static char isGateOpen = 0;
+
+static esp_mqtt_client_handle_t mqttClient;
 
 static inline uint32_t angleDegree(int degree)
 {
     return (degree - SERVO_MIN_DEG)*(SERVO_MAX_PULSEWIDTH - SERVO_MIN_PULSEWIDTH)/(SERVO_MAX_DEG-SERVO_MIN_DEG)+SERVO_MIN_PULSEWIDTH;
 }
 
-void wifiEventHandler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+static void mqttEventHandler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-    if(event_id == WIFI_EVENT_STA_START)
+    esp_mqtt_event_handle_t mqttEvent = event_data;
+    esp_mqtt_client_handle_t mqttClient = mqttEvent->client;
+    switch(event_id)
     {
-        printf("WIFI STA MODE START\n");
-    }
-    else if(event_id == WIFI_EVENT_STA_CONNECTED)
-    {
-        printf("WIFI CONNECTED: %s\n", SSID);
-    }
-    else if(event_id == IP_EVENT_STA_GOT_IP && event_base == IP_EVENT)
-    {
-        ip_event_got_ip_t* ipEvent = event_data;
-        printf("IP ADDRESS: %d.%d.%d.%d\n", IP2STR(&ipEvent->ip_info.ip));
-        //httpInit();
-    }
-    else if(event_id == WIFI_EVENT_STA_DISCONNECTED)
-    {
-        printf("Connecting....\n");
-        esp_wifi_connect();
+        case MQTT_EVENT_CONNECTED:
+            esp_mqtt_client_subscribe(mqttClient, "/gate/control", 2);
+            //esp_mqtt_client_subscribe(mqttClient, "/vision/control", 2);
+            printf("MQTT CONNECTED\n");
+            printf("SUBSCRIBED TO TOPIC /gate/control\n");
+            //printf("SUBSCRIBED TO TOPIC /vison/control\n");
+            break;
+        case MQTT_EVENT_DISCONNECTED:
+            esp_mqtt_client_unsubscribe(mqttClient, "/gate/control");
+            printf("MQTT DISCONNECTED, UNSUBSCRIBED TO TOPIC");
+            break;
+        case MQTT_EVENT_DATA:
+            printf("data: %s\ntopic: %s\n", mqttEvent->data, mqttEvent->topic);
+            if(strcmp(mqttEvent->topic, "/gate/control") == 0)
+            {
+                if(strcmp(mqttEvent->data, "OK") == 0 && gateState == 1)
+                {
+                    isGateOpen = 1;
+                }
+            }
+            break;
+        default:
+            break;
     }
 }
 
-void wifiInit()
+static void mqttInit()
+{
+    esp_mqtt_client_config_t mqttCfg = {
+        .broker.address.uri = MQTT_BROKER
+    };
+    mqttClient = esp_mqtt_client_init(&mqttCfg);
+    esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqttEventHandler, NULL);
+    esp_mqtt_client_start(mqttClient);
+}
+
+static void wifiEventHandler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+{
+    switch(event_id)
+    {
+    case WIFI_EVENT_STA_START:
+        printf("WIFI STA MODE START\n");
+        break;
+    case WIFI_EVENT_STA_CONNECTED:
+        printf("WIFI CONNECTED: %s\n", SSID);
+        break;
+    case WIFI_EVENT_STA_DISCONNECTED:
+        printf("Connecting....\n");
+        esp_wifi_connect();
+        break;
+    case IP_EVENT_STA_GOT_IP:
+        if(event_base == IP_EVENT)
+        {
+            ip_event_got_ip_t* ipEvent = event_data;
+            printf("IP ADDRESS: %d.%d.%d.%d\n", IP2STR(&ipEvent->ip_info.ip));
+            mqttInit();
+            break;
+        }
+        else
+        {
+            break;
+        }
+    default:
+        break;
+    }
+}
+
+static void wifiInit()
 {
     wifi_init_config_t initCfg = WIFI_INIT_CONFIG_DEFAULT();
     wifi_config_t wifiCfg = {
@@ -113,27 +170,35 @@ void mainTask()
     mcpwm_generator_set_action_on_compare_event(mcpwmGenerator, MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, mcpwmComparator, MCPWM_GEN_ACTION_LOW));
     mcpwm_timer_enable(mcpwmTimer);
     mcpwm_timer_start_stop(mcpwmTimer, MCPWM_TIMER_START_NO_STOP);
-    int cnt = 0;
+    
+    //mcpwm_comparator_set_compare_value(mcpwmComparator, angleDegree(-90));
     while(1)
     {
-        proximityDetect = (IR_PIN);
+        proximityDetect = gpio_get_level(IR_PIN);
         if(gateState == 0)
         {
             if(proximityDetect)
             {
-                //request buat scan plat nomer
+                esp_mqtt_client_publish(mqttClient, "/vision/control", "START", 0, 2, 0);
                 gateState++;
             }
         }
         else if(gateState == 1)
         {
-            //tunggu respon plat nomer, kalo udah buka palangnya
-            gateState++;
-            //if timeout balik ke state 0
+            vTaskDelay(7000/portTICK_PERIOD_MS);
+            if(isGateOpen)
+            {
+                gateState++;
+            }
+            else
+            {
+                gateState = 0;
+            }
         }
         else if(gateState == 2)
         {
-            //buka
+            mcpwm_comparator_set_compare_value(mcpwmComparator, angleDegree(90));
+            vTaskDelay(5000/portTICK_PERIOD_MS);
             if(!proximityDetect)
             {
                 gateState++;
@@ -141,10 +206,14 @@ void mainTask()
         }
         else if(gateState == 3)
         {
-            //delay bentar
-            //tutup
+            vTaskDelay(5000/portTICK_PERIOD_MS);
+            mcpwm_comparator_set_compare_value(mcpwmComparator, angleDegree(0));
+            vTaskDelay(2000/portTICK_PERIOD_MS);
+            isGateOpen = 0;
             gateState = 0;
         }
+        printf("gateState: %d\n isGateOpen: %d\n", gateState, isGateOpen);
+        vTaskDelay(10);
     }
 }
 
