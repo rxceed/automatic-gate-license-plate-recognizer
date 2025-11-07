@@ -1,26 +1,28 @@
 version: "3.7"
 
-name: node-res-desiot
+name: back-end-automatic-gate
 
 services:
   node-red:
     image: nodered/node-red:latest
+    container_name: automatic-gate_node-red
     environment:
       - TZ=Asia/Jakarta
     ports:
-      - "1880:1880"
+      - 1880:1880
     networks:
-      - node-red-net
+      - automatic-gate
     volumes:
-      - node-red-desiot-data:/data
+      - node-red_data:/data
   
   emqx:
     image: emqx:latest
+    container_name: automatic-gate_emqx
     environment:
     - "EMQX_NODE__NAME=emqx@node.emqx.io"
     - "EMQX_CLUSTER__DISCOVERY_STRATEGY=static"
     networks:
-      emqx-bridge:
+      automatic-gate:
         aliases:
         - node.emqx.io
     ports:
@@ -30,11 +32,40 @@ services:
       - 8883:8883
       - 18083:18083
 
+  mongodb:
+    image: mongodb/mongodb-community-server:7.0-ubuntu2204
+    container_name: automatic-gate_mongodb
+    environment:
+      - MONGODB_INITDB_ROOT_USERNAME=user
+      - MONGODB_INITDB_ROOT_PASSWORD=pass
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - automatic-gate
+    ports:
+      - 27017:27017
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: automatic-gate_mongo-express
+    depends_on:
+      - mongodb
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: user
+      ME_CONFIG_MONGODB_ADMINPASSWORD: pass
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    networks:
+      - automatic-gate
+    ports:
+      - 8081:8081
+
 volumes:
-  node-red-desiot-data:
+  node-red_data:
+  mongodb_data:
 
 networks:
-  node-red-net:
-  emqx-bridge:
+  automatic-gate:
     driver: bridge
   
