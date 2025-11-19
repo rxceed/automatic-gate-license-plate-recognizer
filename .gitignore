@@ -4,6 +4,7 @@
 .vscode/launch.json
 .vscode/ipch
 .vscode
+.env
 node_modules
 out
 build
