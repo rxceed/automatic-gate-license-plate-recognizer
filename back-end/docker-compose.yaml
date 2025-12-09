@@ -8,12 +8,13 @@ services:
     container_name: automatic-gate_node-red
     environment:
       - TZ=Asia/Jakarta
+    user: root
     ports:
       - 1880:1880
     networks:
       - automatic-gate
     volumes:
-      - node-red_data:/data
+      - ./node-red-data:/data:rw
   
   emqx:
     image: emqx:latest
@@ -35,11 +36,12 @@ services:
   mongodb:
     image: mongodb/mongodb-community-server:7.0-ubuntu2204
     container_name: automatic-gate_mongodb
+    user: root
     environment:
       - MONGODB_INITDB_ROOT_USERNAME=user
       - MONGODB_INITDB_ROOT_PASSWORD=pass
     volumes:
-      - mongodb_data:/data/db
+      - ./mongodb/data:/data/db:rw
     networks:
       - automatic-gate
     ports:
@@ -62,7 +64,6 @@ services:
       - 8081:8081
 
 volumes:
-  node-red_data:
   mongodb_data:
 
 networks:

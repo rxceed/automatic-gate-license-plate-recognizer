@@ -1,10 +1,12 @@
 import { Router } from "express";
 import {
-  getVehiclebyId
+  getVehiclebyId,
+  getVehicleByPlate
 } from "../controllers";
 
 const router = Router();
 
 router.get("/:vehicle_id", getVehiclebyId);
+router.get("/", getVehicleByPlate);
 
-export default router
+export default router;

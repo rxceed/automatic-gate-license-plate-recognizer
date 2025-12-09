@@ -1,18 +1,45 @@
 import mongoose from "mongoose";
-import { IVehicleProfile, IUserProfile, UserProfileSchema } from "../models";
+import { IVehicleProfile, IUserProfile } from "../models";
+import UserProfile from "../models/user.model"
 import ApiError from "../utils/ApiError";
 import { getUserByIdService, getUsersService, createUserService, deleteUserService, updateUserService } from "./user.service";
 
-const UserProfile = mongoose.model<IUserProfile>("user_profiles", UserProfileSchema);
 
-export const addVehicleService = async (user_id: number, vehicle: IVehicleProfile) => {
+export const addVehicleService = async (user_id: number, vehicleData: IVehicleProfile) => {
+    let vehicle_id: string, vehicleNumberByType: number;
     const user = await getUserByIdService(user_id);
+    user.vehicles.push(vehicleData);
+    await user.save();
 
-    user.vehicles.push(vehicle);
+    const lastIndex: number = user.vehicles.length-1;
+    
+    if(!user.vehicles[lastIndex]) throw new ApiError(404, "Vehicle not found")
+    
+    vehicleNumberByType = user.vehicles[lastIndex].vehicle_number_by_type;
+    if(vehicleData.vehicle_type === "motorcycle")
+    {
+        vehicle_id = `M_${vehicleNumberByType}`;
+    }
+    else if(vehicleData.vehicle_type === "car")
+    {
+        vehicle_id = `C_${vehicleNumberByType}`;
+    }
+    else
+    {
+        throw new ApiError(400, "Invalid vehicle type")
+    }
+
+    user.vehicles[lastIndex].vehicle_id = vehicle_id;
     await user.save();
 
     return user.vehicles;
 };
+
+export const getVehicleByPlateService = async (license_plate: string) => {
+    const vehicle = await UserProfile.findOne({"vehicles.license_plate": license_plate});
+    if(!vehicle) throw new ApiError(404, "Vehicle not found");
+    return vehicle;
+}
 
 export const getVehicleByIdService = async (vehicle_id: string) =>{
     const vehicle = await UserProfile.findOne({"vehicles.vehicle_id": vehicle_id});

@@ -33,7 +33,7 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
     try 
     {
         const users = await getUsersService();
-        res.json({ success: true, users });
+        res.status(200).json({ success: true, users });
     } 
     catch(err) 
     {
@@ -44,7 +44,7 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
 export const getUserById = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const user = await getUserByIdService(Number(req.params.user_id));
-        res.json({ success: true, user });
+        res.status(200).json({ success: true, user });
     } catch (err) {
         next(err);
     }
@@ -54,11 +54,11 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
     try 
     {
         const data: IUserProfile = req.body;
-        const forkedUserProfileSchema = userProfileSchema.fork(["name", "identity_card_number", "birthdate"], (schema)=>schema.optional());
+        const forkedUserProfileSchema = userProfileSchema.fork(["name", "identity_card_number", "birthdate", "password"], (schema)=>schema.optional());
         const {error, value} = forkedUserProfileSchema.validate(data);
         if(error) throw new ApiError(400, error.message);
         const updated = await updateUserService(Number(req.params.user_id), req.body);
-        res.json({ success: true, user: updated });
+        res.status(200).json({ success: true, user: updated });
     } 
     catch(err) 
     {
@@ -70,7 +70,7 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
     try 
     {
         await deleteUserService(Number(req.params.user_id));
-        res.json({ success: true, message: "User deleted" });
+        res.status(200).json({ success: true, message: "User deleted" });
     } 
     catch(err) 
     {

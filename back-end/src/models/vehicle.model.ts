@@ -4,6 +4,7 @@ export interface IVehicleProfile {
     vehicle_id: string,
     license_plate: string,
     vehicle_type: string,
+    vehicle_number_by_type: number,
     date_registered: Date;
 }
 
@@ -11,7 +12,7 @@ export const VehicleProfileSchema: Schema = new Schema(
     {
         vehicle_id: {
             type: String,
-            required: true,
+            //required: true,
             trim: true,
             unique: true
         },
@@ -24,6 +25,10 @@ export const VehicleProfileSchema: Schema = new Schema(
             type: String,
             required: true,
             trim: true
+        },
+        vehicle_number_by_type: {
+            type: Number,
+            //required: true,
         },
         date_registered: {
             type: Date,

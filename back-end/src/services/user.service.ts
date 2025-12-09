@@ -1,12 +1,7 @@
 import mongoose from "mongoose";
-import { IVehicleProfile, IUserProfile, UserProfileSchema } from "../models";
+import { IVehicleProfile, IUserProfile } from "../models";
+import UserProfile from "../models/user.model"
 import ApiError from "../utils/ApiError";
-
-/* ----------------------------------------
- * USER SERVICES
- * ---------------------------------------- */
-
-const UserProfile = mongoose.model<IUserProfile>("user_profiles", UserProfileSchema);
 
 export const createUserService = async (data: IUserProfile) => {
     return await UserProfile.create(data);

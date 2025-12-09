@@ -3,7 +3,8 @@ import {
     addVehicleService,
     updateVehicleService,
     deleteVehicleService,
-    getVehicleByIdService
+    getVehicleByIdService,
+    getVehicleByPlateService
 } from "../services";
 import { vehicleProfileSchema, userProfileSchema } from "../utils/validator";
 import { IVehicleProfile, IUserProfile } from "../models";
@@ -28,11 +29,24 @@ export const getVehiclebyId = async (req: Request, res: Response, next: NextFunc
     try 
     {
         const vehicle = await getVehicleByIdService(req.params.vehicle_id as string);
-        res.json({success: true, vehicle});
+        res.status(200).json({success: true, vehicle});
     } 
     catch(err) 
     {
         next(err);    
+    }
+}
+
+export const getVehicleByPlate = async (req: Request, res: Response, next: NextFunction) => {
+    try
+    {
+        const license_plate: string = req.query.license_plate as string;
+        const vehicle = await getVehicleByPlateService(license_plate);
+        res.status(200).json({success: true, vehicle});
+    }
+    catch(err)
+    {
+        next(err);
     }
 }
 
@@ -44,7 +58,7 @@ export const updateVehicle = async (req: Request, res: Response, next: NextFunct
         const {error, value} = forkedVehicleProfileSchema.validate(data);
         if(error) throw new ApiError(400, error.message);
         const vehicles = await updateVehicleService(Number(req.params.user_id), req.params.vehicle_id as string, req.body);
-        res.json({ success: true, vehicles });
+        res.status(200).json({ success: true, vehicles });
     } 
     catch(err) 
     {
@@ -56,7 +70,7 @@ export const deleteVehicle = async (req: Request, res: Response, next: NextFunct
     try 
     {
         await deleteVehicleService(Number(req.params.user_id), req.params.vehicle_id as string);
-        res.json({ success: true, message: "Vehicle removed" });
+        res.status(200).json({ success: true, message: "Vehicle removed" });
     } 
     catch (err) 
     {

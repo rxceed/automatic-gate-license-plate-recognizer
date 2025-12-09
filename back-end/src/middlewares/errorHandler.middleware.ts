@@ -39,4 +39,6 @@ export const errorHandler = (
     success: false,
     message: "Internal server error",
   });
+
+  next();
 };
